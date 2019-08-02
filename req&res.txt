@@ -1,0 +1,55 @@
+request: json
+type:table
+{
+	'timezone': 'browser',
+	'panelId': 2,
+	'dashboardId': 10,
+	'range': {
+		'from': '2019-08-02T01:41:25.669Z',
+		'to': '2019-08-02T07:41:25.669Z',
+		'raw': {
+			'from': 'now-6h',
+			'to': 'now'
+		}
+	},
+	'rangeRaw': {
+		'from': 'now-6h',
+		'to': 'now'
+	},
+	'interval': '20s',
+	'intervalMs': 20000,
+	'targets': [{
+		'target': 'N_NODEIP：218.1.101.50',
+		'refId': 'A',
+		'type': 'table'
+	}],
+	'maxDataPoints': 960,
+	'scopedVars': {
+		'__interval': {
+			'text': '20s',
+			'value': '20s'
+		},
+		'__interval_ms': {
+			'text': 20000,
+			'value': 20000
+		}
+	},
+	'adhocFilters': []
+}
+
+response: list
+[
+  {
+    "columns":[
+      {"text":"Time","type":"time"},
+      {"text":"Country","type":"string"},
+      {"text":"Number","type":"number"}
+    ],
+    "rows":[
+      [1234567,"SE",123],
+      [1234567,"DE",231],
+      [1234567,"US",321]
+    ],
+    "type":"table"
+  }
+]
