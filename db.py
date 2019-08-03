@@ -11,6 +11,11 @@ sql = "select N_APPNAME,LastOccurrence,Severity,N_SummaryCN,Summary,N_NODEIP,N_C
       "where N_CURRENTSTATUS='NEW' " \
       "and Severity in (4,5) " \
       "order by Severity asc,LastOccurrence asc"
+sql_customize = "select LastOccurrence,N_APPNAME,N_NODEIP,N_OBJ_NAME,N_SummaryCN,Summary,Severity " \
+                "from alerts.status " \
+                "where N_CURRENTSTATUS='NEW' " \
+                "and Severity in (4,5) "
+order_by = "order by Severity asc,LastOccurrence asc"
 curs = conn.cursor()
 curs.execute("select * from alerts.status where N_NODEIP='218.1.100.50'")
 curs.fetchall()  # [["218.1.100.50","告警1"],["218.1.100.50","告警2"]]

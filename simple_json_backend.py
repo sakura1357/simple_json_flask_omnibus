@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, json, abort
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS, cross_origin
 import jaydebeapi
 import time
@@ -12,24 +12,11 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 methods = ('GET', 'POST')
 
 # request metric configuration
-# 节点名称、IP地址、主机名、告警级别 "N_APPNAME", "N_NODEIP", "N_OBJ_NAME", "Severity"
-metric_finders = {}
-metric_readers = {}
-annotation_readers = {}
-panel_readers = {}
-
-# SQL configuration
-# 只查询四级和五级告警，显示按告警级别和最新发生时间排序
-SQL_ALL = "select N_APPNAME,LastOccurrence,Severity,N_SummaryCN,Summary,N_NODEIP,N_COMPONENTTYPE,N_OBJ_NAME " \
-          "from alerts.status " \
-          "where N_CURRENTSTATUS='NEW' " \
-          "and Severity in (4,5) " \
-          "order by Severity asc,LastOccurrence asc"
-SQL_customize = "select N_APPNAME,LastOccurrence,Severity,N_SummaryCN,Summary,N_NODEIP,N_COMPONENTTYPE,N_OBJ_NAME " \
-                "from alerts.status " \
-                "where N_CURRENTSTATUS='NEW' " \
-                "and Severity in (4,5) " \
-                "order by Severity asc,LastOccurrence asc"
+# metric_finders = {}
+# metric_readers = {}
+# annotation_readers = {}
+# panel_readers = {}
+sql_conditions = []
 
 
 # 获取数据库连接
@@ -39,9 +26,6 @@ def get_cursor():
                               ["root", "netcool"],
                               "/opt/python-sybase/lib/jconn3d.jar", )
     return conn.cursor()
-    # curs.execute("select * from alerts.status where N_NODEIP='218.1.100.50'")
-    # curs.fetchall()  # [["218.1.100.50","告警1"],["218.1.100.50","告警2"]]
-    # curs.close()
 
 
 # 时间戳转换为本地时间
@@ -85,59 +69,69 @@ def hello_world():
 @app.route('/search', methods=methods)
 @cross_origin()
 def find_metrics():
-    print(request.headers, request.get_json())
+    # print(request.headers, request.get_json())
     # 返回输入样例
-    return jsonify(['N_APPNAME:节点一', 'N_NODEIP：218.1.101.50', 'N_OBJ_NAME:SHGGT-JYSBPBAK', 'Severity:4'])
+    return jsonify(['N_APPNAME:节点一', 'N_NODEIP：218.1.101.50', 'N_OBJ_NAME:SHGGT-JYSBPBAK'])
 
 
 @app.route('/query', methods=methods)
 @cross_origin(max_age=600)
 def query_metrics():
+    sql_customize = "select LastOccurrence,N_APPNAME,N_NODEIP,N_OBJ_NAME,N_SummaryCN,Summary,Severity " \
+                    "from alerts.status " \
+                    "where N_CURRENTSTATUS='NEW'" \
+                    "and Severity in (4,5) "
+    order_by = " order by Severity asc,LastOccurrence asc"
+
     print(request.headers, request.get_json())
     req = request.get_json()
 
-    results = []
+    timestamps_from = utc_to_local(req['range']['from'])
+    timestamps_to = utc_to_local(req['range']['to'])
+
+    for target in req['targets']:
+        if ":" not in target.get('target', ''):
+            abort(404, Exception("输入格式错误，参考样例:"
+                                 "'N_APPNAME:节点一', "
+                                 "'N_NODEIP：218.1.101.50', "
+                                 "'N_OBJ_NAME:SHGGT-JYSBPBAK'"))
+        # req_type = target.get('type', 'table')    # 默认请求类型为table
+
+        field, value = target['target'].split(':', 1)
+        sql_conditions.append(field + '= \'' + value + '\'')
+
+    # 拼接SQL语句
+    for condition in sql_conditions:
+        sql_customize = sql_customize + " and " + condition
+    sql_customize = sql_customize + order_by        # 没有添加时间范围条件: timestamp_from, timestamp_to
+
+    try:
+        curs = get_cursor()
+        # print(sql_customize)
+        curs.execute(sql_customize)
+        query_results = curs.fetchall()  # 没有验证返回 LastOccurrence 的时间格式
+    except Exception as e:
+        print(e)
+        abort(404, Exception("查询失败，请检查输入条件!"))
+    finally:
+        curs.close()
+
     res = [
         {
             "columns": [
-                {"text": "Time", "type": "time"},
-                {"text": "Country", "type": "string"},
-                {"text": "Number", "type": "number"}
+                {"text": "最后发生时间", "type": "time"},
+                {"text": "所属节点", "type": "string"},
+                {"text": "IP地址", "type": "string"},
+                {"text": "主机名", "type": "string"},
+                {"text": "告警内容", "type": "string"},
+                {"text": "告警内容", "type": "string"},
+                {"text": "级别", "type": "number"}
             ],
-            "rows": [
-                [1234567, "SE", 123],
-                [1234567, "DE", 231],
-                [1234567, "US", 321]
-            ],
+            "rows": query_results,
             "type": "table"
         }
     ]
 
-    time_range_from = req['range']['from']
-    time_range_to = req['range']['to']
-    print(time_range_from)
-    # 2019-08-02T02:34:32.370Z
-    # if 'intervalMs' in req:
-    #     freq = str(req.get('intervalMs')) + 'ms'
-    # else:
-    #     freq = None
-    #
-    # for target in req['targets']:
-    #     if ':' not in target.get('target', ''):
-    #         abort(404, Exception('Target must be of type: <finder>:<metric_query>, got instead: ' + target['target']))
-    #
-    #     req_type = target.get('type', 'table')
-    #
-    #     finder, target = target['target'].split(':', 1)
-    #     query_results = metric_readers[finder](target, ts_range)
-    #
-    #     if req_type == 'table':
-    #         results.extend(dataframe_to_json_table(target, query_results))
-    #     else:
-    #         results.extend(dataframe_to_response(target, query_results, freq=freq))
-
-    # return jsonify(results)
-    pass
     return jsonify(res)
 
 
