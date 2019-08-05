@@ -6,5 +6,6 @@ def test_str():
         sql = sql + "AND" + item
     return sql
 
+
 if __name__ == '__main__':
     print(test_str())

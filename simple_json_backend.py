@@ -12,10 +12,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 methods = ('GET', 'POST')
 
 # request metric configuration
-# metric_finders = {}
-# metric_readers = {}
 # annotation_readers = {}
-# panel_readers = {}
 sql_conditions = []
 
 
@@ -79,41 +76,47 @@ def find_metrics():
 def query_metrics():
     sql_customize = "select LastOccurrence,N_APPNAME,N_NODEIP,N_OBJ_NAME,N_SummaryCN,Summary,Severity " \
                     "from alerts.status " \
-                    "where N_CURRENTSTATUS='NEW'" \
-                    "and Severity in (4,5) "
-    order_by = " order by Severity asc,LastOccurrence asc"
+                    "where N_CURRENTSTATUS='NEW' "\
+                    "and Severity in (4,5)"
+    order_by = "order by Severity asc,LastOccurrence asc"
 
     print(request.headers, request.get_json())
     req = request.get_json()
 
     timestamps_from = utc_to_local(req['range']['from'])
     timestamps_to = utc_to_local(req['range']['to'])
+    time_condition = ' and LastOccurrence between \'' + str(timestamps_from) + '\' and \'' + str(timestamps_to) + '\' '
 
-    for target in req['targets']:
-        if ":" not in target.get('target', ''):
-            abort(404, Exception("输入格式错误，参考样例:"
-                                 "'N_APPNAME:节点一', "
-                                 "'N_NODEIP：218.1.101.50', "
-                                 "'N_OBJ_NAME:SHGGT-JYSBPBAK'"))
-        # req_type = target.get('type', 'table')    # 默认请求类型为table
+    if req['targets']:
+        for target in req['targets']:
+            if ":" not in target.get('target', ''):
+                abort(404, Exception("输入格式错误，参考样例:"
+                                     "'N_APPNAME:节点一', "
+                                     "'N_NODEIP：218.1.101.50', "
+                                     "'N_OBJ_NAME:SHGGT-JYSBPBAK'"))
+            # req_type = target.get('type', 'table')    # 默认请求类型为table
 
-        field, value = target['target'].split(':', 1)
-        sql_conditions.append(field + '= \'' + value + '\'')
-
-    # 拼接SQL语句
-    for condition in sql_conditions:
-        sql_customize = sql_customize + " and " + condition
-    sql_customize = sql_customize + order_by        # 没有添加时间范围条件: timestamp_from, timestamp_to
-
+            field, value = target['target'].split(':', 1)
+            sql_conditions.append(field + '=\'' + value + '\'')
+        # 拼接SQL语句
+        for condition in sql_conditions:
+            sql_customize = sql_customize + " and " + condition
+    sql_customize = sql_customize + time_condition + order_by
+    print(sql_customize)
+    curs = get_cursor()
+    query_results = []
     try:
-        curs = get_cursor()
-        # print(sql_customize)
         curs.execute(sql_customize)
         query_results = curs.fetchall()  # 没有验证返回 LastOccurrence 的时间格式
     except Exception as e:
         print(e)
         abort(404, Exception("查询失败，请检查输入条件!"))
     finally:
+        # 每次请求查询完毕返回响应后,需要将sql语句重置
+        sql_customize = "select LastOccurrence,N_APPNAME,N_NODEIP,N_OBJ_NAME,N_SummaryCN,Summary,Severity " \
+                        "from alerts.status " \
+                        "where N_CURRENTSTATUS='NEW' " \
+                        "and Severity in (4,5)"
         curs.close()
 
     res = [

@@ -13,7 +13,7 @@ sql = "select N_APPNAME,LastOccurrence,Severity,N_SummaryCN,Summary,N_NODEIP,N_C
       "order by Severity asc,LastOccurrence asc"
 sql_customize = "select LastOccurrence,N_APPNAME,N_NODEIP,N_OBJ_NAME,N_SummaryCN,Summary,Severity " \
                 "from alerts.status " \
-                "where N_CURRENTSTATUS='NEW' " \
+                "where N_CURRENTSTATUS='NEW' LastOccurrence between 1479285300 and 1479285500" \
                 "and Severity in (4,5) "
 order_by = "order by Severity asc,LastOccurrence asc"
 curs = conn.cursor()
