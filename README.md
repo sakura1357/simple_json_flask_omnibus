@@ -1,7 +1,7 @@
 # simple_json_flask_omnibus
 > grafana --> simple json databasource plugin --> python3&flask --> netcool omnibus(Sybase Database)
 
-##参考
+## 参考
 * https://grafana.com/grafana/plugins/grafana-simple-json-datasource
 * https://github.com/grafana/simple-json-datasource
 * https://gist.github.com/linar-jether/95ff412f9d19fdf5e51293eb0c09b850
